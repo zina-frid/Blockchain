@@ -1,10 +1,14 @@
 import hashlib
 import random
+import time
 from blockchain.src.block import Block
+import json
+from datetime import datetime
 
 
 class Node:
     def __init__(self, process):
+        self.process = process  # Node id
         self.chain = []  # Chain of blocks
         self.last_block = None
         self.difficulty = 4  # Difficulty for hash
@@ -44,9 +48,50 @@ class Node:
     # Mining a block to the correct hash
     def mine(self, block):
         while block.hash_[-self.difficulty:] != '0' * self.difficulty:
-            block.nonce += 1
+            # Different nonce change for different Nodes
+            if self.process.id == 1:
+                block.nonce += 1
+            elif self.process.id == 2:
+                block.nonce += 5
+            else:
+                block.nonce += random.randint(1, 25)
             block.hash_ = self.get_hash(block.index, block.prev_hash, block.data, block.nonce)
-        return Block(block.index, block.prev_hash, block.hash_, block.data, block.nonce)
+        return Block(block.index, block.prev_hash, block.hash_, block.data, block.nonce, datetime.now().time())
+
+    # Received block handler
+    def handle_received_block(self, received_block):
+        # Convert received block to Python object
+        block_in_json = json.loads(received_block)
+        # Convert Python object to Block
+        block = Block.block_from_json(block_in_json)
+
+        # If genesis, appends to chain
+        if block.index == 0:
+            self.chain.append(block)
+            self.last_block = block
+            block.print_block(0, True)
+            return True
+
+        self_last_block_index = 0
+        if self.last_block is not None:
+            self_last_block_index = self.last_block.index
+        # If block is valid, appends to chain
+
+        if block.index == self_last_block_index + 1:
+            self.chain.append(block)
+            self.last_block = block
+            block.print_block(int(block_in_json['node_num']), False)
+            return True
+
+        # If node added its block to chain and broadcast it, but than received a new block with same index
+        # so check by timestamp
+        if block.index == self_last_block_index and block.timestamp < self.last_block.timestamp:
+            self.chain[-1] = block
+            self.last_block = block
+            block.print_block(int(block_in_json['node_num']), False)
+            time.sleep(1)
+            return True
+        return False
 
     # Creates genesis block
     def create_genesis(self):
@@ -56,6 +101,7 @@ class Node:
             "hash",
             "data",
             0,
+            datetime.now().time()
         )
         self.chain.append(genesis)
         self.last_block = genesis
@@ -80,6 +126,6 @@ class Node:
         for i in range(length):
             block = self.chain[i]
             str_chain += f"Block(index={block.index}, prev_hash={block.prev_hash}, hash={block.hash_}, " \
-                         f"data={block.data}, nonce={block.nonce} \n"
+                         f"data={block.data}, nonce={block.nonce}, timestamp={block.timestamp}) \n"
 
         return str_chain
