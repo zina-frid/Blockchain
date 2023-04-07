@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  node3:
+    image: zina/blockchain
+    container_name: node3
+    network_mode: host
+    command: "8003"
+    stdin_open: true
+    tty: true
+
+
+  node2:
+    image: zina/blockchain
+    container_name: node2
+    network_mode: host
+    command: "8002"
+    stdin_open: true
+    tty: true
+
+  node1:
+    image: zina/blockchain
+    container_name: node1
+    network_mode: host
+    command: "8001"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - node2
+      - node3
